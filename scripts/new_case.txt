@@ -1,0 +1,1 @@
+create_newcase -case /users/work/mjanecki/models/ice001 -res bs2v1_bs2v1 -compset hydro -mach tryton -din_loc_root_csmdata /users/kdm/mjanecki/CESM/inputdata
