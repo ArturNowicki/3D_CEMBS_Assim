@@ -735,27 +735,27 @@
 !mj ===================================================================
 !mj biogeny
 !mj ===================================================================
-
-          do iblock = 1,nblocks_clinic
-             do ii = 3,7
-               where (TRACER(:,:,:,ii,:,iblock) < c0)
-                 TRACER(:,:,:,ii,:,iblock) = 0.01_r8
-               endwhere
-             enddo
-          enddo
-
+!
+!          do iblock = 1,nblocks_clinic
+!             do ii = 3,7
+!               where (TRACER(:,:,:,ii,:,iblock) < c0)
+!                 TRACER(:,:,:,ii,:,iblock) = 0.01_r8
+!               endwhere
+!             enddo
+!          enddo
+!
 !mj ===================================================================
 !mj fitoplankton i inne
 !mj ===================================================================
-
-          do iblock = 1,nblocks_clinic
-             do ii = 9,nt 
-               where (TRACER(:,:,:,ii,:,iblock) < c0)
-                 TRACER(:,:,:,ii,:,iblock) = 0.01_r8
-               endwhere
-             enddo
-          enddo
-
+!
+!          do iblock = 1,nblocks_clinic
+!             do ii = 9,nt 
+!               where (TRACER(:,:,:,ii,:,iblock) < c0)
+!                 TRACER(:,:,:,ii,:,iblock) = 0.01_r8
+!               endwhere
+!             enddo
+!          enddo
+!
 !mj ===================================================================
 
    call diag_global_afterupdate

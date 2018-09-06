@@ -717,7 +717,8 @@
 !
 !-----------------------------------------------------------------------
 
-   if (assim_pt_interior_data_type /= 'none' .and. k > 1) then
+!   if (assim_pt_interior_data_type /= 'none' .and. k > 1) then
+   if (assim_pt_interior_data_type /= 'none') then
 
       bid = this_block%local_id
 
