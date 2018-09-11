@@ -708,7 +708,7 @@
       now                  ! index for interpolated data
 
    real (r8), dimension(nx_block,ny_block) :: &
-      Dassim_pt_interior    ! interior potential restoring for this
+      DASSIM_PT_INTERIOR    ! interior potential restoring for this
                       ! block and level
 
 !-----------------------------------------------------------------------
@@ -748,23 +748,23 @@
 !-----------------------------------------------------------------------
 
       if (assim_pt_interior_variable_restore) then
-         Dassim_pt_interior = PT_RESTORE_RTAU(:,:,bid)*                &
+         DASSIM_PT_INTERIOR = PT_RESTORE_RTAU(:,:,bid)*                &
                         merge((assim_pt_interior_DATA(:,:,k,bid,now) - &
                                TRACER(:,:,k,1,curtime,bid)),     &
                                c0, k <= PT_RESTORE_MAX_LEVEL(:,:,bid))
       else
          if (k <= assim_pt_interior_restore_max_level) then
-            Dassim_pt_interior = assim_pt_interior_restore_rtau*         &
+            DASSIM_PT_INTERIOR = assim_pt_interior_restore_rtau*         &
                           (assim_pt_interior_DATA(:,:,k,bid,now) - &
                            TRACER(:,:,k,1,curtime,bid))
          else
-            Dassim_pt_interior = c0
+            DASSIM_PT_INTERIOR = c0
          endif
       endif
 
       !*** add restoring to any other source terms
 
-      PT_SOURCE = PT_SOURCE + Dassim_pt_interior
+      PT_SOURCE = PT_SOURCE + DASSIM_PT_INTERIOR
 
    endif ! k=1
 
