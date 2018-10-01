@@ -38,7 +38,8 @@
 ! !PUBLIC DATA MEMBERS:
 
    real (r8), public ::       &! public for use in restart
-      assim_pt_interior_interp_last  ! time last interpolation was done
+      assim_pt_interior_interp_last , & ! time last interpolation was done
+      assim_pt_mask_interp_last  ! copy for mask
 
 !EOP
 !BOC
@@ -49,18 +50,22 @@
 !-----------------------------------------------------------------------
 
    real (r8), dimension(:,:,:,:,:), allocatable :: &
-      assim_pt_interior_DATA  ! data to restore interior pot temp towards
+      ASSIM_PT_INTERIOR_DATA  ! data to restore interior pot temp towards
 
    real (r8), dimension(:,:,:), allocatable :: &
       PT_RESTORE_RTAU  ! inverse restoring timescale for variable
                        ! interior restoring
 
+   real (r8), dimension(:,:,:,:,:), allocatable :: &
+      ASSIM_PT_MASK ! mask of assimilated data
+                           
    integer (int_kind), dimension(:,:,:), allocatable :: &
       PT_RESTORE_MAX_LEVEL ! maximum level for applying variable
                            ! interior restoring
 
    real (r8), dimension(12) :: &
-      assim_pt_interior_data_time    !
+      assim_pt_interior_data_time, &    !
+      assim_pt_mask_data_time    !copy for mask
 
    real (r8), dimension(20) :: &
       assim_pt_interior_data_renorm  ! factors to convert to model units
@@ -68,7 +73,9 @@
    real (r8) ::                &
       assim_pt_interior_data_inc,    &! time increment between values of forcing data
       assim_pt_interior_data_next,   &! time to be used for the next value of forcing data that is needed
+      assim_pt_mask_data_next,   &! copy for mask
       assim_pt_interior_data_update, &! time when new forcing value to be added to interpolation set
+      assim_pt_mask_data_update, &! copy for mask
       assim_pt_interior_interp_inc,  &! time increment between interpolation
       assim_pt_interior_interp_next, &! time next interpolation will be done
       assim_pt_interior_restore_tau, &! restoring timescale (non-variable)
@@ -77,7 +84,10 @@
    integer (int_kind) ::             &
       assim_pt_interior_interp_order,      &! order of temporal interpolation
       assim_pt_interior_data_time_min_loc, &! index of the third dimension of assim_pt_interior_data_time containing the minimum forcing time
+      assim_pt_mask_data_time_min_loc, &!copy for mask
       assim_pt_interior_restore_max_level
+
+
 
    character (char_len) ::     &
       assim_pt_interior_data_type,   &! keyword for period of forcing data
@@ -88,7 +98,9 @@
       assim_pt_interior_data_label,  &!
       assim_pt_interior_formulation, &!
       assim_pt_interior_restore_filename, &!
-      assim_pt_interior_restore_file_fmt
+      assim_pt_interior_restore_file_fmt, &
+      assim_pt_mask_filename,        &
+      assim_pt_mask_file_fmt
 
    character (char_len), dimension(:), allocatable :: &
       assim_pt_interior_data_names    ! names for required input data fields
@@ -134,14 +146,16 @@
 
    character (char_len) :: &
       forcing_filename,    &! full filename of forcing data file
+      mask_filename,       &! full filename of mask file
       long_name             ! long name for input data field
 
    type (datafile) :: &
-      assim_pt_int_data_file  ! data file descriptor for interior pot temp data
+      assim_pt_int_data_file, &  ! data file descriptor for interior pot temp data
+      assim_pt_mask_file      ! data file descriptor for assim mask data
 
    type (io_field_desc) :: &
-      pt_data_in          ! io field descriptor for input pot temp data
-
+      pt_data_in,   &       ! io field descriptor for input pot temp data
+      mask_data_in          ! io field descriptor for input mask data
    type (io_dim) :: &
       i_dim, j_dim, &! dimension descriptors for horiz dims
       k_dim          ! dimension descriptor  for depth
@@ -153,7 +167,8 @@
         assim_pt_interior_file_fmt,         assim_pt_interior_restore_max_level,   &
         assim_pt_interior_data_renorm,      assim_pt_interior_formulation,         &
         assim_pt_interior_variable_restore, assim_pt_interior_restore_filename,    &
-        assim_pt_interior_restore_file_fmt
+        assim_pt_interior_restore_file_fmt, &
+        assim_pt_mask_filename,             assim_pt_mask_file_fmt
 
 !-----------------------------------------------------------------------
 !
@@ -176,6 +191,8 @@
    assim_pt_interior_variable_restore  = .false.
    assim_pt_interior_restore_filename  = 'unknown-assim_pt_interior_restore'
    assim_pt_interior_restore_filename  = 'bin'
+   assim_pt_mask_filename       = 'unknown-assim_pt_interior'
+   assim_pt_mask_file_fmt       = 'bin'
 
    if (my_task == master_task) then
       open (nml_in, file=nml_filename, status='old', iostat=nml_error)
@@ -210,6 +227,8 @@
    call broadcast_scalar(assim_pt_interior_restore_filename,  master_task)
    call broadcast_scalar(assim_pt_interior_restore_file_fmt,  master_task)
    call broadcast_array (assim_pt_interior_data_renorm,       master_task)
+   call broadcast_scalar (assim_pt_mask_filename,              master_task)
+   call broadcast_scalar (assim_pt_mask_file_fmt,              master_task)
 
 !-----------------------------------------------------------------------
 !
@@ -252,7 +271,7 @@
 
 !-----------------------------------------------------------------------
 !
-!  set values of the interior PT array (assim_pt_interior_DATA)
+!  set values of the interior PT array (ASSIM_PT_INTERIOR_DATA)
 !    depending on the type of the PT data.
 !
 !-----------------------------------------------------------------------
@@ -274,14 +293,14 @@
       !*** (read in from a file) that is constant in time, therefore
       !*** no new values will be needed.
 
-      allocate(assim_pt_interior_DATA(nx_block,ny_block,km, &
+      allocate(ASSIM_PT_INTERIOR_DATA(nx_block,ny_block,km, &
                                 max_blocks_clinic,1))
 
       allocate(assim_pt_interior_data_names(1), &
                assim_pt_interior_bndy_loc  (1), &
                assim_pt_interior_bndy_type (1))
 
-      assim_pt_interior_DATA = c0
+      ASSIM_PT_INTERIOR_DATA = c0
       assim_pt_interior_data_names(1) = 'TEMPERATURE'
       assim_pt_interior_bndy_loc  (1) = field_loc_center
       assim_pt_interior_bndy_type (1) = field_type_scalar
@@ -303,7 +322,7 @@
                              dim1=i_dim, dim2=j_dim, dim3=k_dim,        &
                              field_loc = assim_pt_interior_bndy_loc(1),       &
                              field_type = assim_pt_interior_bndy_type(1),     &
-                             d3d_array = assim_pt_interior_DATA(:,:,:,:,1))
+                             d3d_array = ASSIM_PT_INTERIOR_DATA(:,:,:,:,1))
 
       call data_set (assim_pt_int_data_file, 'define', pt_data_in)
       call data_set (assim_pt_int_data_file, 'read',   pt_data_in)
@@ -312,7 +331,7 @@
       call destroy_file(assim_pt_int_data_file)
 
       if (assim_pt_interior_data_renorm(1) /= c1) &
-         assim_pt_interior_DATA = assim_pt_interior_DATA*assim_pt_interior_data_renorm(1)
+         ASSIM_PT_INTERIOR_DATA = ASSIM_PT_INTERIOR_DATA*assim_pt_interior_data_renorm(1)
 
       assim_pt_interior_data_next = never
       assim_pt_interior_data_update = never
@@ -330,14 +349,14 @@
       !*** All 12 months are read in from a file. interpolation order
       !*** may be specified with namelist input.
 
-      allocate(assim_pt_interior_DATA(nx_block,ny_block,km,   &
+      allocate(ASSIM_PT_INTERIOR_DATA(nx_block,ny_block,km,   &
                                 max_blocks_clinic,0:12))
 
       allocate(assim_pt_interior_data_names(12), &
                assim_pt_interior_bndy_loc  (12), &
                assim_pt_interior_bndy_type (12))
 
-      assim_pt_interior_DATA = c0
+      ASSIM_PT_INTERIOR_DATA = c0
       call find_forcing_times(          assim_pt_interior_data_time,         &
                assim_pt_interior_data_inc,    assim_pt_interior_interp_type,       &
                assim_pt_interior_data_next,   assim_pt_interior_data_time_min_loc, &
@@ -365,7 +384,7 @@
                              dim1=i_dim, dim2=j_dim, dim3=k_dim,        &
                              field_loc = assim_pt_interior_bndy_loc(n),       &
                              field_type = assim_pt_interior_bndy_type(n),     &
-                             d3d_array = assim_pt_interior_DATA(:,:,:,:,n))
+                             d3d_array = ASSIM_PT_INTERIOR_DATA(:,:,:,:,n))
 
          call data_set (assim_pt_int_data_file, 'define', pt_data_in)
          call data_set (assim_pt_int_data_file, 'read',   pt_data_in)
@@ -376,7 +395,7 @@
       call destroy_file(assim_pt_int_data_file)
 
       if (assim_pt_interior_data_renorm(1) /= c1) &
-         assim_pt_interior_DATA = assim_pt_interior_DATA*assim_pt_interior_data_renorm(1)
+         ASSIM_PT_INTERIOR_DATA = ASSIM_PT_INTERIOR_DATA*assim_pt_interior_data_renorm(1)
 
       if (my_task == master_task) then
          write(stdout,blank_fmt)
@@ -392,14 +411,18 @@
       !*** are necessary based on the order of the temporal
       !*** interpolation scheme reside in memory at any given time.
 
-      allocate(assim_pt_interior_DATA(nx_block,ny_block,km,max_blocks_clinic,&
+      allocate(ASSIM_PT_INTERIOR_DATA(nx_block,ny_block,km,max_blocks_clinic,&
+                                          0:assim_pt_interior_interp_order))
+
+      allocate(ASSIM_PT_MASK(nx_block,ny_block,km,max_blocks_clinic,&
                                           0:assim_pt_interior_interp_order))
 
       allocate(assim_pt_interior_data_names(1), &
                assim_pt_interior_bndy_loc  (1), &
                assim_pt_interior_bndy_type (1))
 
-      assim_pt_interior_DATA = c0
+      ASSIM_PT_INTERIOR_DATA = c0
+      ASSIM_PT_MASK = c0
       assim_pt_interior_data_names(1) = 'TEMPERATURE'
       assim_pt_interior_bndy_loc  (1) = field_loc_center
       assim_pt_interior_bndy_type (1) = field_type_scalar
@@ -410,6 +433,36 @@
                assim_pt_interior_data_update, assim_pt_interior_data_type)
 
       do n = 1, assim_pt_interior_interp_order
+
+         call get_forcing_filename(mask_filename,         &
+                                   assim_pt_mask_filename,     &
+                                   assim_pt_interior_data_time(n), &
+                                   assim_pt_interior_data_inc)
+
+         assim_pt_mask_file = construct_file(assim_pt_mask_file_fmt,       &
+                                    full_name=trim(mask_filename),  &
+                                    record_length=rec_type_dbl,        &
+                                    recl_words=nx_global*ny_global)
+
+         call data_set(assim_pt_mask_file, 'open_read')
+
+         i_dim = construct_io_dim('i',nx_global)
+         j_dim = construct_io_dim('j',ny_global)
+         k_dim = construct_io_dim('k',km)
+
+         mask_data_in = construct_io_field(                               &
+                             trim(assim_pt_interior_data_names(1)),           &
+                             dim1=i_dim, dim2=j_dim, dim3=k_dim,        &
+                             field_loc = assim_pt_interior_bndy_loc(1),       &
+                             field_type = assim_pt_interior_bndy_type(1),     &
+                             d3d_array = ASSIM_PT_MASK(:,:,:,:,n))
+
+         call data_set (assim_pt_mask_file, 'define', mask_data_in)
+         call data_set (assim_pt_mask_file, 'read',   mask_data_in)
+         call data_set (assim_pt_mask_file, 'close')
+         call destroy_io_field(mask_data_in)
+         call destroy_file(assim_pt_mask_file)
+
          call get_forcing_filename(forcing_filename,         &
                                    assim_pt_interior_filename,     &
                                    assim_pt_interior_data_time(n), &
@@ -431,7 +484,7 @@
                              dim1=i_dim, dim2=j_dim, dim3=k_dim,        &
                              field_loc = assim_pt_interior_bndy_loc(1),       &
                              field_type = assim_pt_interior_bndy_type(1),     &
-                             d3d_array = assim_pt_interior_DATA(:,:,:,:,n))
+                             d3d_array = ASSIM_PT_INTERIOR_DATA(:,:,:,:,n))
 
          call data_set (assim_pt_int_data_file, 'define', pt_data_in)
          call data_set (assim_pt_int_data_file, 'read',   pt_data_in)
@@ -447,7 +500,7 @@
       enddo
 
       if (assim_pt_interior_data_renorm(1) /= c1) &
-         assim_pt_interior_DATA = assim_pt_interior_DATA*assim_pt_interior_data_renorm(1)
+         ASSIM_PT_INTERIOR_DATA = ASSIM_PT_INTERIOR_DATA*assim_pt_interior_data_renorm(1)
 
    case default
 
@@ -614,15 +667,15 @@
                assim_pt_interior_data_time_min_loc, assim_pt_interior_interp_type, &
                assim_pt_interior_data_next,         assim_pt_interior_data_update, &
                assim_pt_interior_data_type,         assim_pt_interior_data_inc,    &
-               assim_pt_interior_DATA(:,:,:,:,1:12),assim_pt_interior_data_renorm, &
+               ASSIM_PT_INTERIOR_DATA(:,:,:,:,1:12),assim_pt_interior_data_renorm, &
                assim_pt_interior_data_label,        assim_pt_interior_data_names,  &
                assim_pt_interior_bndy_loc,          assim_pt_interior_bndy_type,   &
                assim_pt_interior_filename,          assim_pt_interior_file_fmt)
       endif
 
       if (thour00 >= assim_pt_interior_interp_next .or. nsteps_run==0) then
-         call interpolate_forcing(assim_pt_interior_DATA(:,:,:,:,0),       &
-                                  assim_pt_interior_DATA(:,:,:,:,1:12),    &
+         call interpolate_forcing(ASSIM_PT_INTERIOR_DATA(:,:,:,:,0),       &
+                                  ASSIM_PT_INTERIOR_DATA(:,:,:,:,1:12),    &
                    assim_pt_interior_data_time, assim_pt_interior_interp_type,   &
                    assim_pt_interior_data_time_min_loc,                    &
                    assim_pt_interior_interp_freq, assim_pt_interior_interp_inc,  &
@@ -638,24 +691,52 @@
 
       assim_pt_interior_data_label = 'assim_pt_interior n-hour'
       if (thour00 >= assim_pt_interior_data_update) then
-         call update_forcing_data(            assim_pt_interior_data_time,   &
+        assim_pt_mask_data_time = assim_pt_interior_data_time
+        assim_pt_mask_data_time_min_loc = assim_pt_interior_data_time_min_loc
+        assim_pt_mask_data_next = assim_pt_interior_data_next
+        assim_pt_mask_data_update = assim_pt_interior_data_update
+        assim_pt_mask_interp_last = assim_pt_interior_interp_last
+
+         call update_forcing_data(            assim_pt_interior_data_time,         &
                assim_pt_interior_data_time_min_loc, assim_pt_interior_interp_type, &
                assim_pt_interior_data_next,         assim_pt_interior_data_update, &
                assim_pt_interior_data_type,         assim_pt_interior_data_inc,    &
-               assim_pt_interior_DATA(:,:,:,:,1:assim_pt_interior_interp_order),   &
-               assim_pt_interior_data_renorm,                                &
+               ASSIM_PT_INTERIOR_DATA(:,:,:,:,1:assim_pt_interior_interp_order),   &
+               assim_pt_interior_data_renorm,                                      &
                assim_pt_interior_data_label,        assim_pt_interior_data_names,  &
                assim_pt_interior_bndy_loc,          assim_pt_interior_bndy_type,   &
                assim_pt_interior_filename,          assim_pt_interior_file_fmt)
-      endif
 
+         call update_forcing_data(            assim_pt_mask_data_time,         &
+               assim_pt_mask_data_time_min_loc, assim_pt_interior_interp_type, &
+               assim_pt_mask_data_next,         assim_pt_mask_data_update, &
+               assim_pt_interior_data_type,         assim_pt_interior_data_inc,    &
+               ASSIM_PT_MASK(:,:,:,:,1:assim_pt_interior_interp_order),            &
+               assim_pt_interior_data_renorm,                                      &
+               assim_pt_interior_data_label,        assim_pt_interior_data_names,                  &
+               assim_pt_interior_bndy_loc,          assim_pt_interior_bndy_type,   &
+               assim_pt_mask_filename,              assim_pt_mask_file_fmt)
+      endif
+      ! write(*,*) "AN2: forcing data",  &
+      !   minval(ASSIM_PT_INTERIOR_DATA(:,:,:,:,1:assim_pt_interior_interp_order)), &
+      !   maxval(ASSIM_PT_INTERIOR_DATA(:,:,:,:,1:assim_pt_interior_interp_order))
+      ! write(*,*) "AN3: forcing mask",  &
+      !   minval(ASSIM_PT_MASK(:,:,:,:,1:assim_pt_interior_interp_order)), &
+      !   maxval(ASSIM_PT_MASK(:,:,:,:,1:assim_pt_interior_interp_order))
       if (thour00 >= assim_pt_interior_interp_next .or. nsteps_run==0) then
-         call interpolate_forcing(assim_pt_interior_DATA(:,:,:,:,0),         &
-               assim_pt_interior_DATA(:,:,:,:,1:assim_pt_interior_interp_order),   &
+         call interpolate_forcing(ASSIM_PT_INTERIOR_DATA(:,:,:,:,0),         &
+               ASSIM_PT_INTERIOR_DATA(:,:,:,:,1:assim_pt_interior_interp_order),   &
                assim_pt_interior_data_time,         assim_pt_interior_interp_type, &
                assim_pt_interior_data_time_min_loc, assim_pt_interior_interp_freq, &
                assim_pt_interior_interp_inc,        assim_pt_interior_interp_next, &
                assim_pt_interior_interp_last,       nsteps_run)
+
+         call interpolate_forcing(ASSIM_PT_MASK(:,:,:,:,0),         &
+               ASSIM_PT_MASK(:,:,:,:,1:assim_pt_interior_interp_order),   &
+               assim_pt_interior_data_time,         assim_pt_interior_interp_type, &
+               assim_pt_interior_data_time_min_loc, assim_pt_interior_interp_freq, &
+               assim_pt_interior_interp_inc,        assim_pt_interior_interp_next, &
+               assim_pt_mask_interp_last,       nsteps_run)
 
          if (nsteps_run /= 0) assim_pt_interior_interp_next = &
                               assim_pt_interior_interp_next + &
@@ -749,22 +830,22 @@
 
       if (assim_pt_interior_variable_restore) then
          DASSIM_PT_INTERIOR = PT_RESTORE_RTAU(:,:,bid)*                &
-                        merge((assim_pt_interior_DATA(:,:,k,bid,now) - &
+                        merge((ASSIM_PT_INTERIOR_DATA(:,:,k,bid,now) - &
                                TRACER(:,:,k,1,curtime,bid)),     &
                                c0, k <= PT_RESTORE_MAX_LEVEL(:,:,bid))
       else
          if (k <= assim_pt_interior_restore_max_level) then
             DASSIM_PT_INTERIOR = assim_pt_interior_restore_rtau*         &
-                          (assim_pt_interior_DATA(:,:,k,bid,now) - &
+                          (ASSIM_PT_INTERIOR_DATA(:,:,k,bid,now) - &
                            TRACER(:,:,k,1,curtime,bid))
          else
             DASSIM_PT_INTERIOR = c0
          endif
       endif
-
-      !*** add restoring to any other source terms
-
-      PT_SOURCE = PT_SOURCE + DASSIM_PT_INTERIOR
+      ! *** add restoring to any other source terms
+      where (ASSIM_PT_MASK(:,:,k,bid,now) .gt. c0)
+        PT_SOURCE = PT_SOURCE + DASSIM_PT_INTERIOR
+      endwhere
 
    endif ! k=1
 

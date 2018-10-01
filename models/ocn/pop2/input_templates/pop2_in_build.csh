@@ -1500,7 +1500,7 @@ cat >> $POP2BLDSCRIPT << EOF2
    assim_pt_interior_data_type         = 'n-hour'
    assim_pt_interior_data_inc          = 24.
    assim_pt_interior_interp_freq       = 'every-timestep'
-   assim_pt_interior_interp_type       = 'nearest'
+   assim_pt_interior_interp_type       = 'linear'
    assim_pt_interior_interp_inc        = 2.
    assim_pt_interior_restore_tau       = 2.
    assim_pt_interior_filename          = '/users/kdm/anowicki/CESM/inputdata/ocn/pop/bs2v1/assim/interior/assim_pt_interior'
@@ -1511,6 +1511,8 @@ cat >> $POP2BLDSCRIPT << EOF2
    assim_pt_interior_variable_restore  = .false.
    assim_pt_interior_restore_filename  = 'unknown-assim_pt_interior_restore'
    assim_pt_interior_restore_file_fmt  = 'bin'
+   assim_pt_mask_filename          = '/users/kdm/anowicki/CESM/inputdata/ocn/pop/bs2v1/assim/interior/assim_pt_mask'
+   assim_pt_mask_file_fmt          = 'bin'
 /
 
 EOF2
