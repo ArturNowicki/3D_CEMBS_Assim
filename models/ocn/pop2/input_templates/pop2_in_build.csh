@@ -1497,6 +1497,7 @@ EOF2
 
 cat >> $POP2BLDSCRIPT << EOF2
 &assim_pt_interior_nml
+   assim_pt_interior_on                = .false.
    assim_pt_interior_data_type         = 'n-hour'
    assim_pt_interior_data_inc          = 24.
    assim_pt_interior_interp_freq       = 'every-timestep'
@@ -1548,6 +1549,7 @@ EOF2
 
 cat >> $POP2BLDSCRIPT << EOF2
 &assim_s_interior_nml
+   assim_s_interior_on                = .false.
    assim_s_interior_data_type         = 'n-hour'
    assim_s_interior_data_inc          = 24.
    assim_s_interior_interp_freq       = 'every-timestep'

@@ -110,7 +110,8 @@
       assim_pt_interior_bndy_type     !   ghost cell updates
 
    logical (log_kind) :: &
-      assim_pt_interior_variable_restore
+      assim_pt_interior_variable_restore, &
+      assim_pt_interior_on
 
 !EOC
 !***********************************************************************
@@ -160,7 +161,7 @@
       i_dim, j_dim, &! dimension descriptors for horiz dims
       k_dim          ! dimension descriptor  for depth
 
-   namelist /assim_pt_interior_nml/ assim_pt_interior_data_type,           &
+   namelist /assim_pt_interior_nml/ assim_pt_interior_on, assim_pt_interior_data_type, &
         assim_pt_interior_data_inc,         assim_pt_interior_interp_type,         &
         assim_pt_interior_interp_freq,      assim_pt_interior_interp_inc,          &
         assim_pt_interior_restore_tau,      assim_pt_interior_filename,            &
@@ -177,6 +178,7 @@
 !
 !-----------------------------------------------------------------------
 
+   assim_pt_interior_on             = .false.
    assim_pt_interior_formulation    = 'restoring'
    assim_pt_interior_data_type      = 'none'
    assim_pt_interior_data_inc       = 1.e20_r8
@@ -213,6 +215,7 @@
      call exit_POP(sigAbort,'ERROR: reading assim_pt_interior_nml')
    endif
 
+   call broadcast_scalar(assim_pt_interior_on,                master_task)
    call broadcast_scalar(assim_pt_interior_formulation,       master_task)
    call broadcast_scalar(assim_pt_interior_data_type,         master_task)
    call broadcast_scalar(assim_pt_interior_data_inc,          master_task)
@@ -799,7 +802,7 @@
 !-----------------------------------------------------------------------
 
 !   if (assim_pt_interior_data_type /= 'none' .and. k > 1) then
-   if (assim_pt_interior_data_type /= 'none') then
+   if (assim_pt_interior_data_type /= 'none' .and. assim_pt_interior_on) then
 
       bid = this_block%local_id
 
