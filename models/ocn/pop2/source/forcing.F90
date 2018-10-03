@@ -28,6 +28,7 @@
    use forcing_pt_interior
    use assim_pt_interior
    use forcing_s_interior
+   use assim_s_interior
    use forcing_ap
    use forcing_coupled, only: set_combined_forcing, tavg_coupled_forcing,  &
        liceform, qsw_12hr_factor, qsw_distrb_iopt, qsw_distrb_iopt_cosz, &
@@ -153,6 +154,7 @@
    call init_pt_interior
    call init_assim_pt_interior
    call init_s_interior
+   call init_assim_s_interior
    call init_ap(ATM_PRESS)
 
 !-----------------------------------------------------------------------
@@ -298,6 +300,7 @@
    call get_pt_interior_data
    call get_assim_pt_interior_data
    call get_s_interior_data
+   call get_assim_s_interior_data
 
 !-----------------------------------------------------------------------
 !

@@ -59,6 +59,7 @@
    use forcing_pt_interior, only: set_pt_interior
    use assim_pt_interior, only: set_assim_pt_interior
    use forcing_s_interior, only: set_s_interior
+   use assim_s_interior, only: set_assim_s_interior
    use passive_tracers, only: set_interior_passive_tracers,  &
        reset_passive_tracers, tavg_passive_tracers, &
        tavg_passive_tracers_baroclinic_correct
@@ -1867,6 +1868,7 @@
    call set_pt_interior(k,this_block,WORKN(:,:,1))
    call set_assim_pt_interior(k,this_block,WORKN(:,:,1))
    call set_s_interior (k,this_block,WORKN(:,:,2))
+   call set_assim_s_interior(k,this_block,WORKN(:,:,2))
 
 
    if (nt > 2) call set_interior_passive_tracers(k, this_block, WORKN)

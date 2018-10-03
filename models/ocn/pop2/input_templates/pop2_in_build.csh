@@ -1542,6 +1542,33 @@ cat >> $POP2BLDSCRIPT << EOF2
 
 EOF2
 
+#--------------------------------------------------------------------------
+# assim_s_interior_nml
+#--------------------------------------------------------------------------
+
+cat >> $POP2BLDSCRIPT << EOF2
+&assim_s_interior_nml
+   assim_s_interior_data_type         = 'n-hour'
+   assim_s_interior_data_inc          = 24.
+   assim_s_interior_interp_freq       = 'every-timestep'
+   assim_s_interior_interp_type       = 'linear'
+   assim_s_interior_interp_inc        = 2.
+   assim_s_interior_restore_tau       = 2.
+   assim_s_interior_filename          = '/users/kdm/anowicki/CESM/inputdata/ocn/pop/bs2v1/assim/interior/assim_s_interior'
+   assim_s_interior_file_fmt          = 'bin'
+   assim_s_interior_restore_max_level = 21 
+   assim_s_interior_formulation       = 'restoring'
+   assim_s_interior_data_renorm(1)    = 1.
+   assim_s_interior_variable_restore  = .false.
+   assim_s_interior_restore_filename  = 'unknown-assim_s_interior_restore'
+   assim_s_interior_restore_file_fmt  = 'bin'
+   assim_s_mask_filename          = '/users/kdm/anowicki/CESM/inputdata/ocn/pop/bs2v1/assim/interior/assim_s_mask'
+   assim_s_mask_file_fmt          = 'bin'
+/
+
+EOF2
+
+
 
 #--------------------------------------------------------------------------
 # orlanski
