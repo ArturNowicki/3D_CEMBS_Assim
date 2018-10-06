@@ -1560,7 +1560,7 @@ cat >> $POP2BLDSCRIPT << EOF2
    assim_s_interior_file_fmt          = 'bin'
    assim_s_interior_restore_max_level = 21 
    assim_s_interior_formulation       = 'restoring'
-   assim_s_interior_data_renorm(1)    = 1.
+   assim_s_interior_data_renorm(1)    = 0.001
    assim_s_interior_variable_restore  = .false.
    assim_s_interior_restore_filename  = 'unknown-assim_s_interior_restore'
    assim_s_interior_restore_file_fmt  = 'bin'
